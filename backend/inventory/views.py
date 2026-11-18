@@ -2,6 +2,7 @@ from django.shortcuts import render
 
 # Create your views here.
 import django_filters
+from django.db import IntegrityError
 from rest_framework import generics, viewsets
 from rest_framework.response import Response
 from shops.mixins import ShopScopedMixin
@@ -51,14 +52,28 @@ class StockAdjustmentView(ShopScopedMixin, generics.GenericAPIView):
 
         # 3. On appelle LA fonction qui sait changer le stock en sécurité.
         #    C'est elle qui vérifie que le produit est bien dans CE commerce.
-        movement = apply_stock_movement(
-            shop=self.get_membership().shop,
-            product_id=data["product_id"],
-            delta=delta,
-            movement_type=data["movement_type"],
-            user=request.user,
-            reason=data["reason"],
-        )
+        shop = self.get_membership().shop
+        key = data.get("idempotency_key")
+        status = 201
+        if key:
+            movement = StockMovement.objects.filter(shop=shop, idempotency_key=key).first()
+            if movement:
+                return Response(StockMovementSerializer(movement).data, status=200)
+        try:
+            movement = apply_stock_movement(
+                shop=shop,
+                product_id=data["product_id"],
+                delta=delta,
+                movement_type=data["movement_type"],
+                user=request.user,
+                reason=data["reason"],
+                idempotency_key=key,
+            )
+        except IntegrityError:
+            if not key:
+                raise
+            movement = StockMovement.objects.get(shop=shop, idempotency_key=key)
+            status = 200
 
         # 4. On renvoie la ligne du cahier qu'on vient d'écrire (201 = "créé").
-        return Response(StockMovementSerializer(movement).data, status=201)
+        return Response(StockMovementSerializer(movement).data, status=status)

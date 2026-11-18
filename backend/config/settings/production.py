@@ -1,36 +1,28 @@
 import os
+from corsheaders.defaults import default_headers
+from .base import *      # on reprend tout de base.py, puis on durcit
 
-from django.core.exceptions import ImproperlyConfigured
-
-from .base import *
-
+# Jamais de mode "démonstration" sur un vrai serveur : en cas d'erreur,
+# DEBUG=True afficherait au visiteur des morceaux de votre code et de vos réglages.
 DEBUG = False
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
-if not SECRET_KEY:
-    raise ImproperlyConfigured("Set DJANGO_SECRET_KEY in the production environment.")
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
-    if host.strip()
-]
-if not ALLOWED_HOSTS:
-    raise ImproperlyConfigured("Set DJANGO_ALLOWED_HOSTS to your production hostnames.")
+# Les adresses qui ont le droit de parler à Django, écrites dans le .env du SERVEUR :
+# DJANGO_ALLOWED_HOSTS=api.kawastock.example
+ALLOWED_HOSTS = [h.strip() for h in os.environ["DJANGO_ALLOWED_HOSTS"].split(",")]
 
-CORS_ALLOWED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",")
-    if origin.strip()
-]
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
-    if origin.strip()
-]
+# Les sites Vue autorisés à utiliser l'API : CORS_ALLOWED_ORIGINS=https://app.kawastock.example
+CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ["CORS_ALLOWED_ORIGINS"].split(",")]
+CORS_ALLOW_HEADERS = list(default_headers) + ["x-shop-id"]
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS      # pour que l'admin marche en https
 
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
+# --- Tout passer en https (le "cadenas" du navigateur) ---
+SECURE_SSL_REDIRECT = True                       # http:// est renvoyé vers https://
+SESSION_COOKIE_SECURE = True                     # les cookies ne voyagent qu'en https
 CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
+SECURE_HSTS_SECONDS = 31536000                   # "ce site, c'est https pour 1 an"
+# Derrière un serveur web (nginx...), Django ne voit pas le https lui-même :
+# on lui dit de croire l'en-tête que le serveur web ajoute.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Où ranger les fichiers du site d'admin une fois "collectés" pour le serveur.
+STATIC_ROOT = BASE_DIR / "staticfiles"

@@ -1,5 +1,6 @@
 import os
 
+from corsheaders.defaults import default_headers
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -21,8 +22,48 @@ ALLOWED_HOSTS = [
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
-        "DJANGO_CORS_ALLOWED_ORIGINS", "http://localhost:5173"
+        "DJANGO_CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000",
     ).split(",")
     if origin.strip()
 ]
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+DB_ENGINE = os.environ.get("DB_ENGINE", "sqlite").strip().lower()
+
+if DB_ENGINE in {"postgres", "postgresql"}:
+    required_settings = ("DB_NAME", "DB_USER")
+    missing_settings = [name for name in required_settings if not os.environ.get(name)]
+    if missing_settings:
+        raise ImproperlyConfigured(
+            "Set " + ", ".join(missing_settings) + " in backend/.env."
+        )
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["DB_NAME"],
+            "USER": os.environ["DB_USER"],
+            "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+            "HOST": os.environ.get("DB_HOST", "localhost"),
+            "PORT": os.environ.get("DB_PORT", "5432"),
+        }
+    }
+elif DB_ENGINE == "sqlite":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    raise ImproperlyConfigured(
+        "DB_ENGINE must be 'postgres' or 'sqlite'."
+    )
+
+CORS_ALLOW_HEADERS = [*default_headers, "x-shop-id"]
+# Sur mon PC, pas de limite utile : les tests se connectent des dizaines de fois.
+REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": {"login": "1000/min", "register": "1000/min"}}

@@ -1,0 +1,17 @@
+{
+  "name": "KawaStock",
+  "short_name": "KawaStock",
+  "description": "Gestion de commerce, stocks et ventes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f3",
+  "theme_color": "#183d35",
+  "icons": [
+    {
+      "src": "/kawastock-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

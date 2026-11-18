@@ -10,10 +10,14 @@ class Shop(models.Model):
     name = models.CharField(max_length=180)
     slug = models.SlugField(unique=True, blank=True)
     currency = models.CharField(max_length=3, default="XOF")
+    default_min_stock = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     timezone = models.CharField(max_length=64, default="Africa/Abidjan")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+        # Les distributeurs de tickets : combien d'achats / de ventes on a déjà numérotés.
+    purchase_counter = models.PositiveIntegerField(default=0)
+    sale_counter = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.name

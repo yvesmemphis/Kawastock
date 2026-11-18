@@ -28,6 +28,7 @@ class AdjustmentSerializer(serializers.Serializer):
     quantity_delta = serializers.DecimalField(max_digits=12, decimal_places=3)
     movement_type = serializers.ChoiceField(choices=["adjustment", "loss"], default="adjustment")
     reason = serializers.CharField(min_length=3)      # le motif est OBLIGATOIRE
+    idempotency_key = serializers.UUIDField(required=False, allow_null=True)
 
     def validate_quantity_delta(self, value):
         # Un mouvement de 0 ne sert à rien.

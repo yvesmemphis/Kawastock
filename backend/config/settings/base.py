@@ -10,17 +10,25 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from datetime import timedelta
+from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Le dossier "backend". (3 x .parent : base.py -> settings -> config -> backend)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# "Lis le carnet .env et mets ses valeurs à disposition."
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# os.environ["X"] = "donne-moi X, et si c'est absent, ARRÊTE-TOI avec une erreur claire".
+# C'est voulu : mieux vaut un arrêt net qu'un serveur qui démarre sans clé secrète.
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
-# Environment-specific settings provide the secret key and allowed hosts.
-DEBUG = False
+# os.getenv("X", "False") = "donne-moi X, sinon prends False".
+# DEBUG est donc à False PAR DÉFAUT : on doit l'activer exprès, jamais par oubli.
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
+
 ALLOWED_HOSTS = []
 
 
@@ -69,13 +77,26 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Un "interrupteur" : DB_ENGINE=postgres dans .env -> PostgreSQL.
+# Sans cette ligne, on retombe sur SQLite (pratique pour dépanner).
+if os.getenv("DB_ENGINE") == "postgres":
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ["DB_NAME"],
+            "USER": os.environ["DB_USER"],
+            "PASSWORD": os.environ["DB_PASSWORD"],
+            "HOST": os.getenv("DB_HOST", "localhost"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
     }
-}
-
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -112,6 +133,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -120,7 +143,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 INSTALLED_APPS += [
     "rest_framework", "django_filters", "corsheaders", "drf_spectacular",
-    "accounts", "shops", "catalog",  "inventory",
+    "accounts", "shops", "catalog",  "inventory", "suppliers", "purchases",
+    "sales", "reports",
 ]
 MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
 
@@ -138,4 +162,20 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "5/min",        # 5 essais de connexion par minute et par visiteur
+        "register": "10/hour",   # 10 inscriptions par heure et par visiteur
+    },
+}
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),   # le bracelet dure 30 minutes
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),      # le ticket de renouvellement dure 7 jours
+}
+
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "KawaStock API",
+    "DESCRIPTION": "Gestion de stock, achats et ventes pour quincailleries.",
+    "VERSION": "1.0.0",
 }

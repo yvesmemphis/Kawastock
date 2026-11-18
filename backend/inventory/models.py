@@ -41,6 +41,7 @@ class StockMovement(models.Model):
     # Pour l'instant on ne s'en sert pas, mais ce sera utile avec les ventes et les achats.
     source_type = models.CharField(max_length=30, blank=True)
     source_id = models.UUIDField(null=True, blank=True)
+    idempotency_key = models.UUIDField(null=True, blank=True)
 
     reason = models.TextField(blank=True)       # le motif écrit par la personne
 
@@ -55,6 +56,11 @@ class StockMovement(models.Model):
         constraints = [
             # Un mouvement de "0" n'a aucun sens : on l'interdit.
             models.CheckConstraint(check=~Q(quantity_delta=0), name="movement_delta_not_zero"),
+            models.UniqueConstraint(
+                fields=["shop", "idempotency_key"],
+                condition=Q(idempotency_key__isnull=False),
+                name="uniq_stock_movement_idempotency_per_shop",
+            ),
         ]
         indexes = [
             # Un index = l'index d'un livre : trouver vite sans tout relire.

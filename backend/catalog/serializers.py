@@ -31,6 +31,11 @@ class ProductSerializer(serializers.ModelSerializer):
         # Le stock se verra, mais ne s'écrira pas ici (il bougera avec les ventes/achats).
         read_only_fields = ["stock_quantity"]
 
+    def create(self, validated_data):
+        if "min_stock" not in self.initial_data:
+            validated_data["min_stock"] = self.context["shop"].default_min_stock
+        return super().create(validated_data)
+
     def validate_sku(self, value):
         # "Ce SKU existe-t-il déjà dans CE commerce ?" (règle BR-02)
         shop = self.context["shop"]

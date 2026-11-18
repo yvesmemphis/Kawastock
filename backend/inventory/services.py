@@ -10,11 +10,18 @@ from .models import StockMovement
 # Sans ça, on pourrait avoir un stock changé mais aucune ligne dans le cahier.
 @transaction.atomic
 def apply_stock_movement(*, shop, product_id, delta, movement_type, user,
-                         reason="", source_type="", source_id=None):
+                         reason="", source_type="", source_id=None, idempotency_key=None):
     """
     Change le stock d'un produit ET écrit la ligne dans le cahier.
     delta > 0 : le stock augmente.  delta < 0 : le stock diminue.
     """
+
+    if idempotency_key:
+        existing = StockMovement.objects.filter(
+            shop=shop, idempotency_key=idempotency_key
+        ).first()
+        if existing:
+            return existing
 
     # 1. On va chercher le produit, mais seulement dans CE commerce.
     #    select_for_update() = "je pose un cadenas sur ce produit pendant que je travaille",
@@ -40,5 +47,5 @@ def apply_stock_movement(*, shop, product_id, delta, movement_type, user,
         shop=shop, product=product, movement_type=movement_type,
         quantity_delta=delta, quantity_before=before, quantity_after=after,
         source_type=source_type, source_id=source_id,
-        reason=reason, created_by=user,
+        reason=reason, created_by=user, idempotency_key=idempotency_key,
     )

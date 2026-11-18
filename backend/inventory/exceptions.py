@@ -14,3 +14,9 @@ class InsufficientStock(APIException):
                        f"disponible {available}, demandé {requested}."),
             "product_id": str(product.id),
         })
+
+class ConflictError(APIException):
+    # 409 = "Conflit" : la demande est bien écrite, mais elle ne
+    # correspond pas à l'état actuel des choses.
+    status_code = 409
+    default_code = "conflict"
